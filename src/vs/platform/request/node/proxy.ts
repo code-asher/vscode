@@ -5,18 +5,9 @@
 
 import { parse as parseUrl, Url } from 'url';
 import { isBoolean } from '../../../base/common/types.js';
+import { createProxyResolver } from '@vscode/proxy-agent';
 
 export type Agent = any;
-
-function getSystemProxyURI(requestURL: Url, env: typeof process.env): string | null {
-	if (requestURL.protocol === 'http:') {
-		return env.HTTP_PROXY || env.http_proxy || null;
-	} else if (requestURL.protocol === 'https:') {
-		return env.HTTPS_PROXY || env.https_proxy || env.HTTP_PROXY || env.http_proxy || null;
-	}
-
-	return null;
-}
 
 export interface IOptions {
 	proxyUrl?: string;
@@ -24,9 +15,13 @@ export interface IOptions {
 }
 
 export async function getProxyAgent(rawRequestURL: string, env: typeof process.env, options: IOptions = {}): Promise<Agent> {
-	const requestURL = parseUrl(rawRequestURL);
-	const proxyURL = options.proxyUrl || getSystemProxyURI(requestURL, env);
+	const { resolveProxyURL } = createProxyResolver({
+		getProxyURL: () => {
+			return options.proxyUrl;
+		},
+	});
 
+	const proxyURL = await resolveProxyURL(rawRequestURL)
 	if (!proxyURL) {
 		return null;
 	}
